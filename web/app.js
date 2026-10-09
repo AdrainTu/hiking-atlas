@@ -16,7 +16,7 @@
 
   try {
     const saved = JSON.parse(localStorage.getItem('trail-atlas-v1') || '{}');
-    if (Array.isArray(saved.favorites)) state.favorites = new Set(saved.favorites.filter(id => knownIds.has(id)));
+    if (Array.isArray(saved.favorites)) state.favorites = new Set(saved.favorites.filter(id => (knownIds.has(id)||/^u-[a-z0-9-]{1,48}$/.test(id))));
     if (saved.gear && typeof saved.gear === 'object' && !Array.isArray(saved.gear)) {
       for (const route of trails) if (Array.isArray(saved.gear[route.id])) state.gear[route.id] = saved.gear[route.id].filter(index => Number.isInteger(index) && index >= 0 && index < route.gear.length);
     }
@@ -39,14 +39,23 @@
     accountUser=event.detail.user;dirty=false;saveRevision++;
     let saved=event.detail.preferences || {};
     if(!accountUser){try{saved=JSON.parse(localStorage.getItem('trail-atlas-v1') || '{}');}catch{saved={};}}
-    state.favorites=new Set((Array.isArray(saved.favorites)?saved.favorites:[]).filter(id=>knownIds.has(id)));
-    state.completed=new Set(accountUser&&Array.isArray(saved.completed)?saved.completed.filter(id=>knownIds.has(id)):[]);
+    state.favorites=new Set((Array.isArray(saved.favorites)?saved.favorites:[]).filter(id=>(knownIds.has(id)||/^u-[a-z0-9-]{1,48}$/.test(id))));
+    state.completed=new Set(accountUser&&Array.isArray(saved.completed)?saved.completed.filter(id=>(knownIds.has(id)||/^u-[a-z0-9-]{1,48}$/.test(id))):[]);
     state.onlyCompleted=false;
     state.gear={};
-    for(const route of trails)if(Array.isArray(saved.gear?.[route.id]))state.gear[route.id]=saved.gear[route.id].filter(index=>Number.isInteger(index)&&index>=0&&index<route.gear.length);
+    for(const [id,checks] of Object.entries(saved.gear||{})){const route=findRoute(id);if(Array.isArray(checks)&&(route||/^u-[a-z0-9-]{1,48}$/.test(id)))state.gear[id]=checks.filter(index=>Number.isInteger(index)&&index>=0&&index<(route?route.gear.length:100));}
     state.onlyFavorites=false;filterRoutes();
     if(state.selected){const scroll=$('detail').scrollTop;renderDetail();$('detail').scrollTop=scroll;}
   });
+  window.AtlasAddRoutes=routes=>{
+    for(const route of routes)if(!knownIds.has(route.id)){trails.push(route);knownIds.add(route.id);if(state.gear[route.id])state.gear[route.id]=state.gear[route.id].filter(i=>i<route.gear.length);}
+    const chosen=$('province').value;
+    const provinces=[...new Set(trails.flatMap(r=>r.province?.split(' / ')||[]))].sort((a,b)=>a.localeCompare(b,'zh-CN'));
+    $('province').replaceChildren(new Option('全部省区',''));
+    for(const province of provinces)$('province').append(new Option(province,province));
+    $('province').value=chosen;$('total-routes').textContent=trails.length;$('china-count').textContent=trails.filter(r=>r.country.startsWith('中国')).length;
+    filterRoutes();
+  };
   function toast(message) {
     $('toast').textContent = message; $('toast').hidden = false;
     clearTimeout(toastTimer); toastTimer = setTimeout(() => {$('toast').hidden = true;}, 3200);
@@ -101,7 +110,7 @@
     $('route-list').innerHTML = state.filtered.length ? state.filtered.map(route => {
       const favorite = state.favorites.has(route.id), compared = state.compare.includes(route.id);
       return `<article class="route-card ${state.completed.has(route.id)?'is-completed':''} ${state.selected?.id === route.id ? 'selected' : ''}" data-route="${route.id}">
-        <button class="card-open" data-select="${route.id}" aria-label="查看${escape(route.name)}详情"><div class="card-image">${photoImage(state.photos[route.id]?.[0], 'loading="lazy"')}<span class="card-continent">${escape(route.continent)} / ${escape(route.english.split(' · ')[0])}</span><span class="card-level level-${route.level}">${'▴'.repeat(route.level)} ${meta.levels[route.level]}</span></div><div class="card-body"><h3>${escape(route.name)}</h3><p class="card-country">${route.flag} ${escape(route.country)}</p><span class="access-badge ${route.infoOnly?'restricted':''}">${escape(route.accessText || '出发前核实开放')}</span><div class="card-metrics"><span title="${escape(route.distanceText)}">↔ 约 ${route.distance} km</span><span>◷ ${escape(route.duration)}</span><span title="${escape(route.altitudeLabel+'：'+route.altitudeText)}">△ ${route.altitude.toLocaleString()} m</span></div></div></button>
+        <button class="card-open" data-select="${route.id}" aria-label="查看${escape(route.name)}详情"><div class="card-image">${photoImage(state.photos[route.id]?.[0], 'loading="lazy"')}<span class="card-continent">${escape(route.continent)} / ${escape(route.english.split(' · ')[0])}</span><span class="card-level level-${route.level}">${'▴'.repeat(route.level)} ${meta.levels[route.level]}</span></div><div class="card-body"><h3>${escape(route.name)}</h3><p class="card-country">${route.flag} ${escape(route.country)}</p><span class="access-badge ${route.infoOnly?'restricted':''}">${escape(route.accessText || '出发前核实开放')}</span><div class="card-metrics"><span title="${escape(route.distanceText)}">↔ ${route.distance?'约 '+route.distance+' km':'待核实'}</span><span>◷ ${escape(route.duration)}</span><span title="${escape(route.altitudeLabel+'：'+route.altitudeText)}">△ ${route.altitude?route.altitude.toLocaleString()+' m':'待核实'}</span></div></div></button>
         <div class="card-actions"><button data-completed="${route.id}" class="${state.completed.has(route.id)?'lit':''}" aria-pressed="${state.completed.has(route.id)}" aria-label="${state.completed.has(route.id)?'取消点亮':'点亮已走过'}${escape(route.name)}">${state.completed.has(route.id)?'✦ 已走过':'☆ 点亮'}</button><button data-favorite="${route.id}" class="${favorite ? 'on' : ''}" aria-pressed="${favorite}" aria-label="${favorite ? '取消收藏' : '收藏'}${escape(route.name)}">${favorite ? '♥ 已收藏' : '♡ 收藏'}</button><button data-compare="${route.id}" class="${compared ? 'on' : ''}" aria-pressed="${compared}" aria-label="${compared ? '移除对比' : '加入对比'}${escape(route.name)}">${compared ? '✓ 已加入对比' : '＋ 加入对比'}</button></div></article>`;
     }).join('') : `<div class="empty-state"><strong>${state.onlyCompleted?'还没有匹配的已走过线路':state.onlyFavorites ? '这里还没有匹配的收藏' : '暂时没有匹配的线路'}</strong><p>换个目的地、月份或难度，<br>看看另一片山野。</p><button data-reset>清除筛选</button></div>`;
     updateCounts();
@@ -202,7 +211,7 @@
     const checks = new Set(state.gear[route.id] || []);
     const sections = [['出发与交通',route.logistics],['住宿方式',route.stay],['补给与饮水',route.food],['预约与许可',route.permit]];
     $('detail').innerHTML = `<div class="detail-hero">${photoImage(photos[0])}<button class="detail-close icon-button" data-close-detail aria-label="关闭线路详情">×</button>${photos.length ? `<button class="hero-gallery" data-photo="0">▧ 风景相册 · ${photos.length} 张</button>` : ''}<div class="detail-hero-title"><span class="eyebrow">${escape(route.english.toUpperCase())}</span><h2>${escape(route.name)}</h2><p>${route.flag} ${escape(route.country)}</p></div></div>
-      <div class="detail-main"><div class="detail-meta">${badge(route)}${route.tags.map(tag => `<span class="tag">${escape(tag)}</span>`).join('')}</div><div class="access-notice ${route.infoOnly?'restricted':''}"><strong>${escape(route.accessText || '出发前核实开放')}</strong>${route.infoOnly?`<p>${escape(route.permit)}</p>`:''}</div><p class="detail-subtitle">${escape(route.subtitle)}</p>
+      <div class="detail-main">${route.community?`<div class="submission-author">社区投稿 · <button data-author="${route.author.id}">${escape(route.author.username)}</button><p>作者经验与轨迹未经独立核验；出发前确认开放范围和实际路况。</p></div>`:''}<div class="detail-meta">${badge(route)}${route.tags.map(tag => `<span class="tag">${escape(tag)}</span>`).join('')}</div><div class="access-notice ${route.infoOnly?'restricted':''}"><strong>${escape(route.accessText || '出发前核实开放')}</strong>${route.infoOnly?`<p>${escape(route.permit)}</p>`:''}</div><p class="detail-subtitle">${escape(route.subtitle)}</p>
       <div class="detail-stats"><div><small>↔ 路线距离</small><strong>${escape(route.distanceText)}</strong></div><div><small>◷ 参考行程</small><strong>${escape(route.duration)}</strong></div><div><small>△ ${escape(route.altitudeLabel)}</small><strong>${escape(route.altitudeText)}</strong></div><div><small>⌁ 路线形式</small><strong>${escape(route.type)}</strong></div></div>
       <div class="detail-actions"><button data-completed="${route.id}" class="${state.completed.has(route.id)?'lit':''}" aria-pressed="${state.completed.has(route.id)}">${state.completed.has(route.id)?'✦ 已走过 · 取消点亮':'☆ 点亮已走过'}</button><button data-favorite="${route.id}" class="${favorite?'on':''}" aria-pressed="${favorite}">${favorite?'♥ 已收藏':'♡ 收藏线路'}</button><button data-compare="${route.id}" class="${compared?'on':''}" aria-pressed="${compared}">${compared?'✓ 已加入对比':'⇄ 加入对比'}</button>${route.infoOnly?'':'<button data-export>↓ 导出行程卡</button>'}</div>
       <div class="detail-tabs" role="tablist" aria-label="线路详情栏目">${[['overview','线路概览'],['itinerary',route.infoOnly?'通行限制':'行程计划'],['gear','装备清单'],['media','视频 / 社区']].map(([id,name]) => `<button role="tab" id="tab-${id}" aria-controls="pane-${id}" aria-selected="${state.tab===id}" class="${state.tab===id?'active':''}" data-tab="${id}" tabindex="${state.tab===id?0:-1}">${name}</button>`).join('')}</div>
@@ -338,7 +347,7 @@
   $('search').addEventListener('input',filterRoutes);
   for(const id of ['continent','difficulty','duration','month','sort','province','access']) $(id).addEventListener('change',()=>{filterRoutes();if(id==='province')worldView();});
   $('clear-filters').addEventListener('click',clearFilters);
-  $('completed-toggle').addEventListener('click',()=>{if(!accountUser){$('account-open').click();return;}const enable=!state.onlyCompleted;if(enable){$('scope-world').click();clearFilters();}state.onlyCompleted=enable;updateCounts();filterRoutes();});
+  $('completed-toggle').addEventListener('click',async()=>{if(!accountUser){$('account-open').click();return;}const enable=!state.onlyCompleted;if(enable){const missing=[...state.completed].filter(id=>!knownIds.has(id));if(missing.length){$('completed-toggle').disabled=true;toast('正在加载你的社区线路足迹…');try{for(const id of missing)await window.AtlasEnsureRoute?.(id);}catch{toast('部分足迹暂时无法加载，请稍后重试。');}finally{$('completed-toggle').disabled=false;}}$('scope-world').click();clearFilters();}state.onlyCompleted=enable;updateCounts();filterRoutes();});
   $('favorites-toggle').addEventListener('click',()=>{state.onlyFavorites=!state.onlyFavorites;updateCounts();filterRoutes();});
   $('compare-open').addEventListener('click',()=>{renderCompare();pauseTour();$('compare-dialog').showModal();});
   $('feature-open').addEventListener('click',()=>selectRoute('tmb'));
@@ -355,6 +364,7 @@
   document.addEventListener('click',event=>{
     const button=event.target.closest('button'); if(!button) return;
     if(button.dataset.select) selectRoute(button.dataset.select);
+    else if(button.dataset.author) window.AtlasSocial?.profile(Number(button.dataset.author));
     else if(button.dataset.completed) toggleCompleted(button.dataset.completed);
     else if(button.dataset.favorite) toggleFavorite(button.dataset.favorite);
     else if(button.dataset.compare) toggleCompare(button.dataset.compare);

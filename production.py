@@ -105,6 +105,17 @@ def create_app(public_url=None,database_path=None,testing=False):
         result=discuss(store,route,current_user(),body() if request.method=='POST' else None,request.args.get('before'))
         return jsonify(result),201 if request.method=='POST' else 200
 
+    @app.route('/api/submissions',methods=['GET','POST'])
+    def submissions():
+        from submissions import listing,publish
+        if request.method=='POST':return jsonify(publish(store,current_user(),body())),201
+        return jsonify(listing(store,request.args.get('before')))
+
+    @app.get('/api/submissions/<rid>')
+    def submitted_route(rid):
+        from submissions import get_route
+        return jsonify(get_route(store,rid))
+
     @app.get('/api/users')
     def people():
         from social import people

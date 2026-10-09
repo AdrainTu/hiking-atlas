@@ -25,8 +25,8 @@
       }
       body.append(hero,node('h4','已走过的线路','social-section-title'),node('p','点亮的线路会出现在公开主页中，同行者可以查看。','social-note'));
       const routes=node('div',undefined,'social-routes');
-      for(const rid of result.completed){const route=window.TRAILS.find(t=>t.id===rid);if(!route)continue;
-        const b=button('✦ '+route.name+' · '+route.country,()=>{dialog.close();window.AtlasExploreRoute?.(rid);},'social-route');routes.append(b);}
+      for(const rid of result.completed){const route=window.TRAILS.find(t=>t.id===rid);
+        const b=button(route?'✦ '+route.name+' · '+route.country:'✦ 社区线路 · 查看详情',async()=>{try{if(!route)await window.AtlasEnsureRoute?.(rid);dialog.close();window.AtlasExploreRoute?.(rid);}catch(e){error(e,id);}},'social-route');routes.append(b);}
       if(!result.completed.length)routes.append(node('p',self?'还没有点亮线路。打开线路详情，点击「点亮已走过」留下足迹。':'这位同行者还没有点亮线路。','social-empty'));
       body.append(routes);
     }catch(e){error(e,id);}

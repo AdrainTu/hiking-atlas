@@ -53,6 +53,8 @@ class PostgresAccounts(Accounts):
         initialize(self,postgres=True)
         from social import initialize as initialize_social
         initialize_social(self)
+        from submissions import initialize as initialize_submissions
+        initialize_submissions(self)
 
     @contextmanager
     def connect(self):

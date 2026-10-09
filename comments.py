@@ -22,7 +22,8 @@ def initialize(store,postgres=False):
         db.execute('CREATE INDEX IF NOT EXISTS comments_route_id ON comments(route_id,id)')
 
 def discuss(store,route,user=None,data=None,before=None):
-    if route not in ROUTES:raise AccountError(404,'线路不存在。')
+    from submissions import exists
+    if not exists(store,route):raise AccountError(404,'线路不存在。')
     if data is not None:
         if not user:raise AccountError(401,'登录后即可分享经验。')
         if data.get('userId')!=user['id']:raise AccountError(409,'账号已切换，请刷新后重试。')

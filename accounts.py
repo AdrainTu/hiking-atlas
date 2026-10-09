@@ -56,6 +56,8 @@ class Accounts:
         initialize(self)
         from social import initialize as initialize_social
         initialize_social(self)
+        from submissions import initialize as initialize_submissions
+        initialize_submissions(self)
 
     @contextmanager
     def connect(self):
@@ -188,8 +190,8 @@ class Accounts:
                     raise AccountError(400, '装备清单格式不正确。')
             existing=db.execute('SELECT data FROM preferences WHERE user_id=?',(user['id'],)).fetchone()
             completed=data.get('completed',json.loads(existing['data']).get('completed',[]) if existing else [])
-            from comments import ROUTES
-            if not isinstance(completed,list) or len(completed)>200 or not all(isinstance(item,str) and item in ROUTES for item in completed):
+            from submissions import valid_ids
+            if not isinstance(completed,list) or len(completed)>200 or not all(isinstance(item,str) for item in completed) or len(valid_ids(self,completed))!=len(set(completed)):
                 raise AccountError(400,'已走过线路格式不正确。')
             value = {'favorites': list(dict.fromkeys(favorites)), 'gear': gear, 'completed':list(dict.fromkeys(completed))}
             db.execute('INSERT INTO preferences VALUES (?,?) ON CONFLICT(user_id) DO UPDATE SET data=excluded.data',

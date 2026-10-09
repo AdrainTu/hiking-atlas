@@ -28,8 +28,10 @@ def profile(store,uid,viewer=None):
         following=db.execute('SELECT COUNT(*) AS count FROM follows WHERE follower_id=?',(uid,)).fetchone()['count']
         followers=db.execute('SELECT COUNT(*) AS count FROM follows WHERE followed_id=?',(uid,)).fetchone()['count']
         followed=bool(viewer and db.execute('SELECT 1 FROM follows WHERE follower_id=? AND followed_id=?',(viewer['id'],uid)).fetchone())
-    from comments import ROUTES
-    completed=[item for item in json.loads(saved['data']).get('completed',[]) if item in ROUTES] if saved else []
+    from submissions import valid_ids
+    ids=json.loads(saved['data']).get('completed',[]) if saved else []
+    valid=valid_ids(store,ids)
+    completed=[item for item in ids if item in valid]
     return {'user':dict(row),'completed':completed,'followingCount':following,'followerCount':followers,'isFollowing':followed}
 
 def people(store,search='',before=None,uid=None,kind=None):
