@@ -54,6 +54,8 @@ class Accounts:
             ''')
         from comments import initialize
         initialize(self)
+        from social import initialize as initialize_social
+        initialize_social(self)
 
     @contextmanager
     def connect(self):
@@ -169,7 +171,9 @@ class Accounts:
         with self.connect() as db:
             if data is None:
                 row = db.execute('SELECT data FROM preferences WHERE user_id=?', (user['id'],)).fetchone()
-                return json.loads(row['data']) if row else {'favorites': [], 'gear': {}}
+                value=json.loads(row['data']) if row else {'favorites': [], 'gear': {}}
+                value.setdefault('completed',[])
+                return value
             # Account ID prevents delayed writes after switching accounts.
             if data.get('userId') != user['id']:
                 raise AccountError(409, '账号已切换，请刷新后重试保存。')
@@ -182,7 +186,12 @@ class Accounts:
             for key, checks in gear.items():
                 if not valid_id(key) or not isinstance(checks, list) or len(checks) > 100 or not all(type(i) is int and 0 <= i < 100 for i in checks):
                     raise AccountError(400, '装备清单格式不正确。')
-            value = {'favorites': list(dict.fromkeys(favorites)), 'gear': gear}
+            existing=db.execute('SELECT data FROM preferences WHERE user_id=?',(user['id'],)).fetchone()
+            completed=data.get('completed',json.loads(existing['data']).get('completed',[]) if existing else [])
+            from comments import ROUTES
+            if not isinstance(completed,list) or len(completed)>200 or not all(isinstance(item,str) and item in ROUTES for item in completed):
+                raise AccountError(400,'已走过线路格式不正确。')
+            value = {'favorites': list(dict.fromkeys(favorites)), 'gear': gear, 'completed':list(dict.fromkeys(completed))}
             db.execute('INSERT INTO preferences VALUES (?,?) ON CONFLICT(user_id) DO UPDATE SET data=excluded.data',
                        (user['id'], json.dumps(value, ensure_ascii=False)))
             return value

@@ -105,6 +105,26 @@ def create_app(public_url=None,database_path=None,testing=False):
         result=discuss(store,route,current_user(),body() if request.method=='POST' else None,request.args.get('before'))
         return jsonify(result),201 if request.method=='POST' else 200
 
+    @app.get('/api/users')
+    def people():
+        from social import people
+        return jsonify(people(store,request.args.get('search',''),request.args.get('after')))
+
+    @app.get('/api/users/<int:uid>')
+    def profile(uid):
+        from social import profile
+        return jsonify(profile(store,uid,current_user()))
+
+    @app.get('/api/users/<int:uid>/<kind>')
+    def connections(uid,kind):
+        from social import people
+        return jsonify(people(store,before=request.args.get('after'),uid=uid,kind=kind))
+
+    @app.post('/api/users/<int:uid>/follow')
+    def follow(uid):
+        from social import follow
+        return jsonify(follow(store,uid,current_user(),body()))
+
     @app.route('/',defaults={'path':'index.html'})
     @app.route('/<path:path>')
     def static_file(path):

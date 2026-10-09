@@ -31,7 +31,8 @@
         for(const item of result.comments){
           const card=node('article',undefined,'comment-card');const head=node('div',undefined,'comment-meta');
           const date=new Date(item.created_at*1000);const time=node('time',date.toLocaleString('zh-CN',{year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'}));time.dateTime=date.toISOString();
-          head.append(node('strong',item.username),node('span',labels[item.category]||'徒步经验','comment-tag'),time);
+          const author=node('button',item.username,'comment-author');author.type='button';author.addEventListener('click',()=>window.AtlasSocial?.profile(item.user_id));
+          head.append(author,node('span',labels[item.category]||'徒步经验','comment-tag'),time);
           card.append(head,node('p',item.content,'comment-body'));list.append(card);
         }
         cursor=result.next;more.hidden=!cursor;more.textContent='加载更多';status.textContent=result.total?'':'还没有讨论，来分享这条线路的第一份经验吧。';

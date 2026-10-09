@@ -13,13 +13,14 @@
   <script src="china-trails.js" defer></script>
   <script src="auth.js" defer></script>
   <script src="comments.js" defer></script>
+  <script src="social.js" defer></script>
   <script src="app.js" defer></script>
 </head>
 <body>
   <header class="topbar">
     <a class="brand" href="./" aria-label="野途世界徒步探索首页"><span class="brand-mark">◭</span><span>野途 <b>ATLAS</b><small>世界徒步探索</small></span></a>
     <div class="header-caption"><span class="live-dot"></span><span id="total-routes">71</span> 条线路 <span class="divider">/</span> 6 大洲 <span class="divider">/</span> 无限探索</div>
-    <div class="header-actions"><button id="favorites-toggle" class="quiet" aria-pressed="false">♡ <span>我的收藏</span><b id="favorite-count">0</b></button><button id="compare-open" class="quiet" disabled>⇄ <span>线路对比</span><b id="compare-count">0</b></button><button id="account-open" class="quiet account-button">◉ 登录 / 注册</button></div>
+    <div class="header-actions"><button id="completed-toggle" class="quiet" aria-pressed="false">✦ <span>我的足迹</span><b id="completed-count">0</b></button><button id="favorites-toggle" class="quiet" aria-pressed="false">♡ <span>我的收藏</span><b id="favorite-count">0</b></button><button id="compare-open" class="quiet" disabled>⇄ <span>线路对比</span><b id="compare-count">0</b></button><button id="social-open" class="quiet">◌ <span>徒步圈</span></button><button id="account-open" class="quiet account-button">◉ 登录 / 注册</button></div>
   </header>
   <main class="workspace">
     <aside class="catalog" aria-label="徒步线路目录">
@@ -54,6 +55,7 @@
     <div id="auth-account" hidden><div class="account-avatar">◭</div><h3 id="auth-name"></h3><p>收藏与装备清单已关联此账号，登录后会从本地数据库加载。</p><button id="auth-logout" class="auth-submit" type="button">退出登录</button></div>
     <p id="auth-message" class="auth-message" role="status" aria-live="polite"></p><p class="auth-help">本地账号 · 无需邮箱 · 登录有效期 7 天</p>
   </dialog>
+  <dialog id="social-dialog" class="social-dialog" aria-labelledby="social-title"><div class="dialog-header"><div><span class="eyebrow">MEET FELLOW HIKERS</span><h2 id="social-title">徒步圈</h2></div><button id="social-close" class="icon-button" aria-label="关闭徒步圈">×</button></div><div id="social-content"></div><p id="social-status" role="status" aria-live="polite"></p></dialog>
   <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
   <noscript><div class="noscript">请启用浏览器 JavaScript 后探索地图。</div></noscript>
 </body>

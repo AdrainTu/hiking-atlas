@@ -51,6 +51,8 @@ class PostgresAccounts(Accounts):
                 if statement.strip():db.execute(statement)
         from comments import initialize
         initialize(self,postgres=True)
+        from social import initialize as initialize_social
+        initialize_social(self)
 
     @contextmanager
     def connect(self):

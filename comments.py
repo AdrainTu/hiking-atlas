@@ -39,7 +39,7 @@ def discuss(store,route,user=None,data=None,before=None):
         if not 0<cursor<=9223372036854775807:raise ValueError()
     except (ValueError,TypeError):raise AccountError(400,'分页参数不正确。') from None
     with store.connect() as db:
-        rows=db.execute('''SELECT comments.id,category,content,comments.created_at,username
+        rows=db.execute('''SELECT comments.id,category,content,comments.created_at,username,comments.user_id
             FROM comments JOIN users ON users.id=comments.user_id
             WHERE route_id=? AND comments.id<? ORDER BY comments.id DESC LIMIT 21''',(route,cursor)).fetchall()
         total=db.execute('SELECT COUNT(*) AS count FROM comments WHERE route_id=?',(route,)).fetchone()['count']

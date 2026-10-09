@@ -37,3 +37,6 @@
 - [Render Blueprint 配置](https://render.com/docs/blueprint-spec)
 - [Neon 免费计划](https://neon.com/docs/introduction/free-tier)
 - [Waitress 生产服务](https://flask.palletsprojects.com/en/stable/deploying/waitress/)
+
+
+公开 Git 仓库 URL 部署不支持自动发布；后续代码提交后需触发 Render 手动部署，并确认新部署的 commit 与 GitHub main 一致。线路讨论保存在 atlas.comments 表，应用启动自动执行可重复初始化。
