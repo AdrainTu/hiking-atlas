@@ -49,6 +49,8 @@ class PostgresAccounts(Accounts):
         with self.connect() as db:
             for statement in schema.split(';'):
                 if statement.strip():db.execute(statement)
+        from comments import initialize
+        initialize(self,postgres=True)
 
     @contextmanager
     def connect(self):

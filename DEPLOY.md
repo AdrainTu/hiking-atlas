@@ -1,6 +1,6 @@
 # 免费公网部署：Render + Neon
 
-当前状态：Neon 已连接，免费云项目 hiking-atlas（late-sun-72310497）已创建，区域为新加坡，atlas 数据库和 deploy-check 验证分支已确认存在。尚未初始化账号表或取得公网网站地址；Render 与 GitHub 已连接，但尚无独立的 hiking-atlas GitHub 仓库；真实 PostgreSQL 应用联调待完成。项目标识记录于 .deployment/neon.json（不含密码）。
+当前状态：GitHub 仓库 AdrainTu/hiking-atlas 已上传部署代码。Render 免费服务 hiking-atlas 已上线，区域为新加坡；公网地址 https://hiking-atlas.onrender.com 。Neon 加密连接和 atlas 专用 schema 初始化已验证。数据库连接串仅保存在本机 .env 和 Render 环境变量中。验收结果记录在 .deployment/neon.json。
 
 ## 部署内容
 
@@ -21,7 +21,7 @@
 
 免费套餐有资源额度和休眠机制，首次请求可能冷启动。Neon 免费数据库与 Render 免费文件系统不同，数据库内容不会依赖 Web 实例的临时目录。具体额度以平台当前页面为准。
 
-## 部署后验收（尚待实际云资源）
+## 部署后验收
 
 - 公网首页与全部核心 JS / 图片元数据可加载。
 - 用临时测试账号完成注册、错误密码、正确登录、退出。
@@ -29,7 +29,7 @@
 - 验证真实 Neon TLS 连接、PostgreSQL 初始化、唯一用户名冲突和会话到期。
 - 不把密码、数据库 URL 或会话令牌放进日志及截图。
 
-目前自动测试覆盖生产应用的 HTTP / Cookie / 主机与来源校验（临时 SQLite 测试替身），不等同真实 PostgreSQL 联调成功。
+已完成真实公网 HTTPS + Neon PostgreSQL 联调：注册、登录、退出、错误密码、重复用户名、收藏与装备重登保存、账号隔离及私有文件访问保护均通过。临时验收账号已清理；verify_public.py 可重新执行验收。
 
 ## 资料
 

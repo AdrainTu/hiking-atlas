@@ -52,6 +52,8 @@ class Accounts:
                 );
                 CREATE INDEX IF NOT EXISTS session_expiry ON sessions(expires_at);
             ''')
+        from comments import initialize
+        initialize(self)
 
     @contextmanager
     def connect(self):

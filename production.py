@@ -99,6 +99,12 @@ def create_app(public_url=None,database_path=None,testing=False):
     @app.route('/api/preferences',methods=['GET','POST'])
     def preferences():return jsonify(store.preferences(current_user(),body() if request.method=='POST' else None))
 
+    @app.route('/api/routes/<route>/comments',methods=['GET','POST'])
+    def comments(route):
+        from comments import discuss
+        result=discuss(store,route,current_user(),body() if request.method=='POST' else None,request.args.get('before'))
+        return jsonify(result),201 if request.method=='POST' else 200
+
     @app.route('/',defaults={'path':'index.html'})
     @app.route('/<path:path>')
     def static_file(path):

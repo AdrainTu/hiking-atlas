@@ -210,7 +210,8 @@
         <section class="detail-section"><h3 class="section-label">资料来源</h3><div class="source-links">${route.sources.map(([name,url]) => external(url,name)).join('')}</div><p class="reference-note">整理日期：${meta.updated}。难度为本站参考分级，不等同当地官方等级。里程与海拔随路线版本变化；页面不提供实时开放状态。地图连线仅示意关键地点，不能用于现场导航。</p></section>
       </div>
       <div class="tab-pane" id="pane-itinerary" role="tabpanel" aria-labelledby="tab-itinerary" ${state.tab!=='itinerary'?'hidden':''}><h3 class="section-label">行程分段</h3><p>这是一份探索框架。具体每日里程、适应日、住宿与接驳应按体能和当地情况安排。</p><ol class="timeline">${route.itinerary.map(([label,text]) => `<li><strong>${escape(label)}</strong><p>${escape(text)}</p></li>`).join('')}</ol><div class="notice"><h3>先落实关键预约</h3><p>${escape(route.permit)}</p></div>${route.infoOnly?'':'<button class="download-plan" data-export>↓ 保存行程与装备清单</button>'}</div>
-      <div class="tab-pane" id="pane-gear" role="tabpanel" aria-labelledby="tab-gear" ${state.tab!=='gear'?'hidden':''}><h3 class="section-label">把准备，变成安心。</h3><div class="gear-progress"><span>装备准备进度</span><strong id="gear-count">${checks.size} / ${route.gear.length}</strong></div><div class="gear-track"><div id="gear-bar" style="width:${checks.size/route.gear.length*100}%"></div></div><div class="gear-list">${route.gear.map((item,index) => `<label><input type="checkbox" data-gear="${index}" ${checks.has(index)?'checked':''}><span>${escape(item)}</span></label>`).join('')}</div><p class="gear-disclaimer">以上为基础建议，应按季节、天气与住宿方式调整。冬季、冰雪或技术地形需要额外装备与使用技能；勾选完成不代表已具备通行条件。${accountUser?'清单保存在此账号的本地数据库。':'访客清单保存在当前浏览器。'}</p>${route.infoOnly?'':'<button class="download-plan" data-export>↓ 导出我的准备清单</button>'}</div><div class="tab-pane" id="pane-media" role="tabpanel" aria-labelledby="tab-media" ${state.tab!=='media'?'hidden':''}>${renderMedia(route)}</div></div>`;
+      <div class="tab-pane" id="pane-gear" role="tabpanel" aria-labelledby="tab-gear" ${state.tab!=='gear'?'hidden':''}><h3 class="section-label">把准备，变成安心。</h3><div class="gear-progress"><span>装备准备进度</span><strong id="gear-count">${checks.size} / ${route.gear.length}</strong></div><div class="gear-track"><div id="gear-bar" style="width:${checks.size/route.gear.length*100}%"></div></div><div class="gear-list">${route.gear.map((item,index) => `<label><input type="checkbox" data-gear="${index}" ${checks.has(index)?'checked':''}><span>${escape(item)}</span></label>`).join('')}</div><p class="gear-disclaimer">以上为基础建议，应按季节、天气与住宿方式调整。冬季、冰雪或技术地形需要额外装备与使用技能；勾选完成不代表已具备通行条件。${accountUser?'清单保存在此账号的本地数据库。':'访客清单保存在当前浏览器。'}</p>${route.infoOnly?'':'<button class="download-plan" data-export>↓ 导出我的准备清单</button>'}</div><div class="tab-pane" id="pane-media" role="tabpanel" aria-labelledby="tab-media" ${state.tab!=='media'?'hidden':''}>${renderMedia(route)}<section id="route-comments" class="detail-section route-comments"></section></div></div>`;
+    if(state.tab==='media')window.AtlasComments?.mount(route.id);
   }
 
   function renderMedia(route) {
@@ -230,6 +231,7 @@
     if (!detailTabs.includes(tab)) return;
     if(tab!=='media' && $('video-player')) $('video-player').innerHTML='';
     state.tab = tab;
+    if(tab==='media')window.AtlasComments?.mount(state.selected.id);
     for (const id of detailTabs) {
       $('tab-' + id).classList.toggle('active',id===tab);
       $('tab-' + id).setAttribute('aria-selected',String(id===tab));
