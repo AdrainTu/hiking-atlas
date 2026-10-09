@@ -26,7 +26,7 @@
   }
   async function acceptUser(nextUser) {
     const preferences=nextUser?await api('/api/preferences'):null;
-    user=nextUser;ready=true;window.AtlasAuth.user=user;
+    user=nextUser;ready=true;window.AtlasAuth.user=user;window.AtlasAuth.preferences=preferences;
     window.dispatchEvent(new CustomEvent('atlas-account',{detail:{user,preferences}}));render();
   }
   const auth=window.AtlasAuth={user:null,api,flush:async()=>{}};

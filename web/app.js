@@ -416,6 +416,7 @@
     for(const id of ['china','world']) {$('scope-'+id).classList.toggle('active',id===scope);$('scope-'+id).setAttribute('aria-pressed',String(id===scope));}
     $('province').disabled=scope!=='china';worldView();
   });
+  if(window.AtlasAuth.user)window.dispatchEvent(new CustomEvent('atlas-account',{detail:{user:window.AtlasAuth.user,preferences:window.AtlasAuth.preferences||{}}}));
   filterRoutes(); initializeMap(); renderCards();
   const initialId=location.hash.slice(1);
   if(knownIds.has(initialId)) {if(!findRoute(initialId).country.startsWith('中国')){$('scope-world').click();} selectRoute(initialId);}

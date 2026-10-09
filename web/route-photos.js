@@ -9,12 +9,13 @@
   function tile(item){const result=button('',()=>view(item),'photo-tile'),img=node('img');img.src=imageUrl(item.id);img.alt=item.caption;img.loading='lazy';result.append(img,node('span',item.caption+' · '+item.username));return result;}
   $('user-photo-close').addEventListener('click',()=>$('user-photo-dialog').close());$('user-photo-dialog').addEventListener('close',()=>$('user-photo-image').removeAttribute('src'));
   async function mount(route){
+    const viewer=window.AtlasAuth.user?.id;
     const host=$('user-route-photos');if(!host||host.dataset.mounted)return;host.dataset.mounted='1';host.dataset.route=route;
     host.append(node('h3','同行者的线路相册','section-label'),node('p','分享本条线路的实拍照片。文件检查通过后进入待审核队列，人工通过后才公开。','social-note'));
-    host.append(button('＋ 上传本条线路照片',()=>{if(!window.AtlasAuth.user){$('account-open').click();return;}routeId=route;message.textContent='';uploadDialog.showModal();}));
+    host.append(button('＋ 上传本条线路照片',()=>{if(!window.AtlasAuth.user){$('account-open').click();return;}routeId=route;$('photo-upload-title').textContent='上传 · '+(window.TRAILS.find(item=>item.id===route)?.name||'当前线路');message.textContent='';uploadDialog.showModal();}));
     const status=node('p','正在加载相册…','social-note'),gallery=node('div',undefined,'photo-grid'),mine=node('div',undefined,'photo-upload-history');host.append(status,gallery,mine);
     try{
-      const data=await window.AtlasAuth.api('/api/routes/'+encodeURIComponent(route)+'/photos');if(!host.isConnected)return;
+      const data=await window.AtlasAuth.api('/api/routes/'+encodeURIComponent(route)+'/photos');if(!host.isConnected||window.AtlasAuth.user?.id!==viewer)return;
       $('photo-review-open').hidden=!data.canModerate;status.textContent=data.photos.length?'':'暂无已审核的用户照片，来分享你的山野视角。';
       for(const item of data.photos)gallery.append(tile(item));
       let cursor=data.next;
@@ -29,10 +30,11 @@
   async function encodedPhoto(file){
     if(!file||file.size>8*1024*1024)throw new Error('请选择 8 MB 内的 JPEG、PNG 或 WebP 照片。');
     if(!['image/jpeg','image/png','image/webp'].includes(file.type))throw new Error('只支持 JPEG、PNG、WebP。');
+    if(typeof createImageBitmap!=='function')throw new Error('当前浏览器不支持照片处理，请使用较新的浏览器。');
     const bitmap=await createImageBitmap(file);try{
       if(bitmap.width<64||bitmap.height<64||bitmap.width*bitmap.height>64000000)throw new Error('照片尺寸不符合要求。');
       const scale=Math.min(1,1600/Math.max(bitmap.width,bitmap.height)),canvas=document.createElement('canvas');canvas.width=Math.round(bitmap.width*scale);canvas.height=Math.round(bitmap.height*scale);
-      const ctx=canvas.getContext('2d');ctx.fillStyle='#fff';ctx.fillRect(0,0,canvas.width,canvas.height);ctx.drawImage(bitmap,0,0,canvas.width,canvas.height);
+      const ctx=canvas.getContext('2d');if(!ctx)throw new Error('当前浏览器无法处理照片，请换用较新的浏览器。');ctx.fillStyle='#fff';ctx.fillRect(0,0,canvas.width,canvas.height);ctx.drawImage(bitmap,0,0,canvas.width,canvas.height);
       let url=canvas.toDataURL('image/jpeg',.8);if(url.length>1000000)url=canvas.toDataURL('image/jpeg',.6);
       if(url.length>1000000)throw new Error('压缩后仍过大，请选择更小的照片。');return url.split(',')[1];
     }finally{bitmap.close();}
@@ -48,13 +50,13 @@
     const revision=++queueRevision,permission=permissionRevision;
     const content=$('photo-review-content');content.replaceChildren(node('p','正在加载…'));if(!queueDialog.open)queueDialog.showModal();
     try{const data=await window.AtlasAuth.api('/api/photo-review?status='+mode);if(revision!==queueRevision||permission!==permissionRevision||!queueDialog.open)return;content.replaceChildren(button('待审核',()=>reviewQueue('pending')),button('已公开 / 下架管理',()=>reviewQueue('approved')));if(!data.photos.length)content.append(node('p','当前列表没有照片。'));
-      for(const item of data.photos){const card=node('article',undefined,'photo-review-card'),img=node('img');img.src=imageUrl(item.id);img.alt=item.caption;img.loading='lazy';card.append(img,node('h3',item.caption),node('p','作者：'+item.username+' · 线路：'+item.route_id));const reason=node('textarea');reason.placeholder='拒绝原因：内容不适宜、与线路无关、侵权、隐私泄露等';reason.maxLength=400;reason.setAttribute('aria-label','审核原因');card.append(reason);
+      for(const item of data.photos){const card=node('article',undefined,'photo-review-card'),img=node('img');img.src=imageUrl(item.id);img.alt=item.caption;img.loading='lazy';card.append(img,node('h3',item.caption),node('p','作者：'+item.username+' · 线路：'+(window.TRAILS.find(route=>route.id===item.route_id)?.name||'社区投稿线路')));const reason=node('textarea');reason.placeholder='拒绝原因：内容不适宜、与线路无关、侵权、隐私泄露等';reason.maxLength=400;reason.setAttribute('aria-label','审核原因');card.append(reason);
         for(const [decision,label] of (mode==='approved'?[['rejected','下架照片']]:[['approved','通过并公开'],['rejected','拒绝']])){const action=button(label,async()=>{const user=window.AtlasAuth.user;if(!user)return;for(const b of card.querySelectorAll('button'))b.disabled=true;try{await window.AtlasAuth.api('/api/photo-review/'+item.id,{userId:user.id,decision,reason:reason.value,expectedStatus:item.status});await reviewQueue(mode);window.AtlasRoutePhotos.refresh();}catch(e){const note=node('p',e.message);note.setAttribute('role','status');card.append(note);for(const b of card.querySelectorAll('button'))b.disabled=false;}});card.append(action);}
-        content.append(card);
+        card.append(button('查看这条线路',async()=>{try{await window.AtlasEnsureRoute(item.route_id);queueDialog.close();window.AtlasExploreRoute(item.route_id);}catch(e){card.append(node('p',e.message));}}));content.append(card);
       }
     }catch(e){if(revision===queueRevision&&permission===permissionRevision)content.replaceChildren(node('p',e.message));}
   }
   $('photo-review-open').addEventListener('click',()=>reviewQueue());$('photo-review-close').addEventListener('click',()=>queueDialog.close());
   queueDialog.addEventListener('close',()=>{queueRevision++;$('photo-review-content').replaceChildren();});
-  window.addEventListener('atlas-account',async()=>{const revision=++permissionRevision;queueDialog.close();$('photo-review-content').replaceChildren();$('user-photo-dialog').close();$('user-photo-image').removeAttribute('src');$('photo-review-open').hidden=true;uploadDialog.close();form.reset();message.textContent='';try{const data=await window.AtlasAuth.api('/api/photo-permissions');if(revision===permissionRevision)$('photo-review-open').hidden=!data.canModerate;}catch{}});
+  window.addEventListener('atlas-account',async()=>{const revision=++permissionRevision;queueDialog.close();$('photo-review-content').replaceChildren();$('user-photo-dialog').close();$('user-photo-image').removeAttribute('src');$('photo-review-open').hidden=true;const host=$('user-route-photos');if(host){host.replaceChildren();delete host.dataset.mounted;}uploadDialog.close();form.reset();message.textContent='';try{const data=await window.AtlasAuth.api('/api/photo-permissions');if(revision===permissionRevision)$('photo-review-open').hidden=!data.canModerate;}catch{}});
 })();
