@@ -1,5 +1,3 @@
 # Hiking Atlas
 
-Interactive world hiking map with Chinese trails, photos, route details and user accounts.
-
-Deploy with Render and Neon PostgreSQL. See DEPLOY.md.
+Interactive hiking atlas. See DEPLOY.md for Render + Neon deployment.

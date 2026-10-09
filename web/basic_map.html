@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>世界地图 · World Explorer</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css">
+  <style>
+    *{box-sizing:border-box}body{margin:0;font-family:system-ui,"Microsoft YaHei",sans-serif;color:#16332c;background:#f5f7f3}
+    header{padding:20px 28px;display:flex;align-items:center;justify-content:space-between;gap:16px;border-bottom:1px solid #dbe4dd}h1{margin:0;font-size:24px}header span{font-size:12px;letter-spacing:2px;color:#668477}
+    main{display:grid;grid-template-columns:300px 1fr;height:calc(100dvh - 76px);min-height:450px}aside{padding:24px;overflow:auto}h2{font-size:16px;margin:0 0 12px}p{font-size:13px;line-height:1.8;color:#64796d}
+    input,select,button{font:inherit;border:1px solid #cedbd2;border-radius:9px;padding:11px;width:100%;background:white;color:#16332c}button{cursor:pointer;background:#22634e;color:white;border:0;margin-top:10px}button:hover{background:#184d3c}input:focus,select:focus{outline:2px solid #79ac91}
+    label{display:block;font-size:13px;margin:20px 0 8px}.chips{display:grid;grid-template-columns:1fr 1fr;gap:8px}.chips button{background:#e4eee6;color:#22563f;font-size:13px}#map{height:100%;width:100%;background:#d9e9ed}#status{padding:12px;background:#e9efe7;border-radius:10px;font-size:12px;line-height:1.8;margin-top:22px;white-space:pre-line}small{display:block;color:#748579;font-size:11px;line-height:1.8;margin-top:18px}
+    @media(max-width:700px){header{padding:15px}header span{display:none}main{grid-template-columns:1fr;grid-template-rows:auto minmax(400px,1fr);height:auto}aside{padding:16px}.chips{grid-template-columns:repeat(4,1fr)}#map{height:65dvh}#status{margin-top:12px}}
+  </style>
+</head>
+<body>
+  <header><h1>🌍 世界地图</h1><span>WORLD EXPLORER</span></header>
+  <main>
+    <aside>
+      <h2>探索每一个角落</h2>
+      <p>拖动地图环游世界，滚动鼠标放大。点击任意位置查看经纬度。</p>
+      <form id="search"><label for="query">城市或经纬度</label><input id="query" placeholder="北京 / London / 31.23,121.47" list="cities" required><datalist id="cities"></datalist><button type="submit">前往地点 →</button></form>
+      <label for="destination">常用城市</label><select id="destination"><option value="">选择一个城市…</option></select>
+      <label>快速探索</label><div class="chips"><button data-view="35,105,4">中国</button><button data-view="50,12,4">欧洲</button><button data-view="40,-100,3">北美</button><button data-view="-25,135,4">澳洲</button></div>
+      <button id="reset">返回世界全景</button>
+      <div id="status" role="status" aria-live="polite">正在加载地图…</div>
+      <small>城市搜索支持下拉列表中的城市，也可输入“纬度,经度”。地图需要联网加载。</small>
+    </aside>
+    <div id="map" aria-label="交互式世界地图"></div>
+  </main>
+  <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script>
+    const status = document.getElementById('status');
+    if (!window.L) {
+      status.textContent = '地图组件加载失败，请检查网络后刷新页面。';
+    } else {
+      const locations = [
+        ['北京','Beijing',39.9042,116.4074],['上海','Shanghai',31.2304,121.4737],['广州','Guangzhou',23.1291,113.2644],['深圳','Shenzhen',22.5431,114.0579],
+        ['东京','Tokyo',35.6762,139.6503],['新加坡','Singapore',1.3521,103.8198],['曼谷','Bangkok',13.7563,100.5018],['新德里','New Delhi',28.6139,77.209],
+        ['伦敦','London',51.5074,-0.1278],['巴黎','Paris',48.8566,2.3522],['柏林','Berlin',52.52,13.405],['罗马','Rome',41.9028,12.4964],
+        ['纽约','New York',40.7128,-74.006],['洛杉矶','Los Angeles',34.0522,-118.2437],['多伦多','Toronto',43.6532,-79.3832],
+        ['悉尼','Sydney',-33.8688,151.2093],['开罗','Cairo',30.0444,31.2357],['开普敦','Cape Town',-33.9249,18.4241],['里约热内卢','Rio de Janeiro',-22.9068,-43.1729]
+      ];
+      const map = L.map('map',{minZoom:2,worldCopyJump:true}).setView([20,0],2);
+      L.control.scale({imperial:false}).addTo(map);
+      const tiles = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'}).addTo(map);
+      tiles.on('tileerror',()=>{status.textContent='部分地图图片未能加载，请检查网络连接。';});
+      let marker;
+      function showPoint(lat,lng,title){
+        if(marker)map.removeLayer(marker);
+        const content=document.createElement('div');
+        content.textContent=title+' · '+lat.toFixed(4)+', '+lng.toFixed(4);
+        marker=L.marker([lat,lng]).addTo(map).bindPopup(content).openPopup();
+        status.textContent=title+'\n纬度：'+lat.toFixed(4)+'\n经度：'+lng.toFixed(4);
+      }
+      function go(lat,lng,title){map.setView([lat,lng],10);showPoint(lat,lng,title);}
+      const select=document.getElementById('destination');
+      locations.forEach((city,index)=>{
+        const option=document.createElement('option');option.value=index;option.textContent=city[0]+' · '+city[1];select.append(option);
+        const suggestion=document.createElement('option');suggestion.value=city[0];document.getElementById('cities').append(suggestion);
+      });
+      select.addEventListener('change',()=>{if(select.value!==''){const c=locations[Number(select.value)];go(c[2],c[3],c[0]);}});
+      document.getElementById('search').addEventListener('submit',event=>{
+        event.preventDefault();const query=document.getElementById('query').value.trim();
+        const city=locations.find(c=>c[0]===query||c[1].toLowerCase()===query.toLowerCase());
+        if(city){go(city[2],city[3],city[0]);return;}
+        const match=query.match(/^(-?\d+(?:\.\d+)?)\s*[,，]\s*(-?\d+(?:\.\d+)?)$/);
+        if(match&&Math.abs(Number(match[1]))<=85&&Math.abs(Number(match[2]))<=180){go(Number(match[1]),Number(match[2]),'自选位置');return;}
+        status.textContent='请选择列表中的城市，或输入有效经纬度（纬度 -85～85，经度 -180～180）。';
+      });
+      document.querySelectorAll('[data-view]').forEach(button=>button.addEventListener('click',()=>{const [lat,lng,zoom]=button.dataset.view.split(',').map(Number);map.setView([lat,lng],zoom);status.textContent='正在探索：'+button.textContent;}));
+      document.getElementById('reset').addEventListener('click',()=>{map.setView([20,0],2);if(marker){map.removeLayer(marker);marker=null;}select.value='';status.textContent='世界全景 · 点击地图查看坐标';});
+      map.on('click',event=>{const point=event.latlng.wrap();showPoint(point.lat,point.lng,'选中位置');});
+      status.textContent='世界全景 · 点击地图查看坐标';
+    }
+  </script>
+</body>
+</html>
