@@ -204,9 +204,10 @@
   function photoCredit(photo) {
     return `${external(photo.source, photo.author + ' · ' + photo.license)}${photo.licenseUrl ? ' / ' + external(photo.licenseUrl, '许可') : ''}`;
   }
+  window.AtlasRefreshPhotoGallery=id=>{if(state.selected?.id===id){const scroll=$('detail').scrollTop;renderDetail();$('detail').scrollTop=scroll;}};
   function renderDetail() {
     const route = state.selected; if (!route) return;
-    const photos = state.photos[route.id] || [];
+    const photos = [...(state.photos[route.id]||[]),...(window.AtlasRoutePhotos?.photos[route.id]||[])];
     const favorite = state.favorites.has(route.id), compared = state.compare.includes(route.id);
     const checks = new Set(state.gear[route.id] || []);
     const sections = [['出发与交通',route.logistics],['住宿方式',route.stay],['补给与饮水',route.food],['预约与许可',route.permit]];
@@ -218,7 +219,7 @@
       <div class="tab-pane" id="pane-overview" role="tabpanel" aria-labelledby="tab-overview" ${state.tab!=='overview'?'hidden':''}>
         <section class="detail-section"><h3 class="section-label">关于这段旅程</h3><p>${escape(route.description)}</p><ul class="highlights">${route.highlights.map(text => `<li>${escape(text)}</li>`).join('')}</ul></section>
         <section class="detail-section"><h3 class="section-label">风景相册 <span class="eyebrow">REAL PLACES</span></h3><div class="photo-grid ${photos.length===1?'one':''}">${photos.map((photo,index) => `<button class="photo-tile" data-photo="${index}" aria-label="放大${escape(photo.caption)}">${photoImage(photo,'loading="lazy"')}<span>${escape(photo.caption)} ↗</span></button>`).join('')}</div><p class="photo-credits">${photos.length ? photos.map(photoCredit).join('<br>') : route.photoPending?'暂无已授权风景照片，可在社区交流路线经验。':'照片资料暂未加载，请刷新后重试。'}</p></section>
-        <section class="detail-section"><h3 class="section-label">适合什么时候去？</h3><div class="season-strip">${Array.from({length:12},(_,index) => `<span class="season-month ${route.season.includes(index+1)?'in-season':''}" title="${index+1} 月${route.season.includes(index+1)?'：参考适宜月份':'：非主要推荐月份'}">${index+1}</span>`).join('')}</div><p class="season-note">${escape(route.seasonText)} · 实际开放与天气需另行核实</p></section>
+        <section id="user-route-photos" class="detail-section"></section><section class="detail-section"><h3 class="section-label">适合什么时候去？</h3><div class="season-strip">${Array.from({length:12},(_,index) => `<span class="season-month ${route.season.includes(index+1)?'in-season':''}" title="${index+1} 月${route.season.includes(index+1)?'：参考适宜月份':'：非主要推荐月份'}">${index+1}</span>`).join('')}</div><p class="season-note">${escape(route.seasonText)} · 实际开放与天气需另行核实</p></section>
         <section class="detail-section"><h3 class="section-label">摄影灵感</h3><p>${escape(route.photoTip)}</p></section>
         <section class="detail-section"><h3 class="section-label">出发前的准备</h3><div class="info-grid">${sections.map(([label,text]) => `<div class="info-row"><strong>${label}</strong><span>${escape(text)}</span></div>`).join('')}</div></section>
         <section class="detail-section notice"><h3>地形与天气提醒</h3><p>${escape(route.risks)}</p></section>
@@ -226,6 +227,7 @@
       </div>
       <div class="tab-pane" id="pane-itinerary" role="tabpanel" aria-labelledby="tab-itinerary" ${state.tab!=='itinerary'?'hidden':''}><h3 class="section-label">行程分段</h3><p>这是一份探索框架。具体每日里程、适应日、住宿与接驳应按体能和当地情况安排。</p><ol class="timeline">${route.itinerary.map(([label,text]) => `<li><strong>${escape(label)}</strong><p>${escape(text)}</p></li>`).join('')}</ol><div class="notice"><h3>先落实关键预约</h3><p>${escape(route.permit)}</p></div>${route.infoOnly?'':'<button class="download-plan" data-export>↓ 保存行程与装备清单</button>'}</div>
       <div class="tab-pane" id="pane-gear" role="tabpanel" aria-labelledby="tab-gear" ${state.tab!=='gear'?'hidden':''}><h3 class="section-label">把准备，变成安心。</h3><div class="gear-progress"><span>装备准备进度</span><strong id="gear-count">${checks.size} / ${route.gear.length}</strong></div><div class="gear-track"><div id="gear-bar" style="width:${checks.size/route.gear.length*100}%"></div></div><div class="gear-list">${route.gear.map((item,index) => `<label><input type="checkbox" data-gear="${index}" ${checks.has(index)?'checked':''}><span>${escape(item)}</span></label>`).join('')}</div><p class="gear-disclaimer">以上为基础建议，应按季节、天气与住宿方式调整。冬季、冰雪或技术地形需要额外装备与使用技能；勾选完成不代表已具备通行条件。${accountUser?'清单保存在此账号的本地数据库。':'访客清单保存在当前浏览器。'}</p>${route.infoOnly?'':'<button class="download-plan" data-export>↓ 导出我的准备清单</button>'}</div><div class="tab-pane" id="pane-media" role="tabpanel" aria-labelledby="tab-media" ${state.tab!=='media'?'hidden':''}>${renderMedia(route)}<section id="route-comments" class="detail-section route-comments"></section></div></div>`;
+    window.AtlasRoutePhotos?.mount(route.id);
     if(state.tab==='media')window.AtlasComments?.mount(route.id);
   }
 
@@ -294,7 +296,7 @@
     $('compare-content').innerHTML = `<div class="comparison-scroll"><table class="comparison-table"><thead><tr><th scope="col">对比维度</th>${selected.map(route=>`<td>${escape(route.name)}<small>${escape(route.english)}</small><button class="compare-remove" data-compare="${route.id}" aria-label="从对比移除${escape(route.name)}">移除 ×</button></td>`).join('')}</tr></thead><tbody>${rows.map(([title,cell])=>`<tr><th scope="row">${title}</th>${selected.map(route=>`<td>${cell(route)}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
   }
   function openPhoto(index) {
-    const photos = state.photos[state.selected?.id] || [];
+    const photos = [...(state.photos[state.selected?.id]||[]),...(window.AtlasRoutePhotos?.photos[state.selected?.id]||[])];
     if (!photos.length) return;
     state.photoIndex = (index + photos.length) % photos.length;
     const photo = photos[state.photoIndex];
@@ -393,8 +395,8 @@
   },true);
   document.addEventListener('keydown',event=>{
     const editable=['INPUT','SELECT','TEXTAREA'].includes(document.activeElement?.tagName);
-    if(event.key==='/' && !editable && !$('photo-dialog').open && !$('compare-dialog').open && !$('auth-dialog').open && !$('social-dialog').open) {event.preventDefault();$('search').focus();}
-    if(event.key==='Escape' && !$('photo-dialog').open && !$('compare-dialog').open && !$('auth-dialog').open && !$('social-dialog').open && state.selected) closeDetail();
+    if(event.key==='/' && !editable && !$('photo-dialog').open && !$('compare-dialog').open && !$('auth-dialog').open && !$('social-dialog').open && !$('photo-upload-dialog').open && !$('photo-review-dialog').open && !$('user-photo-dialog').open) {event.preventDefault();$('search').focus();}
+    if(event.key==='Escape' && !$('photo-dialog').open && !$('compare-dialog').open && !$('auth-dialog').open && !$('social-dialog').open && !$('photo-upload-dialog').open && !$('photo-review-dialog').open && !$('user-photo-dialog').open && state.selected) closeDetail();
     if($('photo-dialog').open && (event.key==='ArrowRight'||event.key==='ArrowLeft')) {event.preventDefault();openPhoto(state.photoIndex+(event.key==='ArrowRight'?1:-1));}
     if(event.target.getAttribute('role')==='tab' && ['ArrowRight','ArrowLeft','Home','End'].includes(event.key)) {
       event.preventDefault();const tabs=detailTabs;const index=tabs.indexOf(state.tab);

@@ -35,6 +35,8 @@ def create_app(public_url=None,database_path=None,testing=False):
 
     @app.before_request
     def validate_request():
+        if request.method=='POST' and request.path.startswith('/api/routes/') and request.path.endswith('/photos'):
+            request.max_content_length=1100000
         # The platform may probe health through an internal host. Health exposes no account data.
         if request.path!='/api/health' and request.host!=parsed.netloc:
             raise AccountError(403,'请通过本站公开地址访问。')
@@ -116,6 +118,35 @@ def create_app(public_url=None,database_path=None,testing=False):
         from submissions import get_route
         return jsonify(get_route(store,rid))
 
+    @app.route('/api/routes/<route>/photos',methods=['GET','POST'])
+    def route_photos(route):
+        from route_photos import upload,listing
+        if request.method=='POST':return jsonify(upload(store,route,current_user(),body())),201
+        return jsonify(listing(store,route,current_user(),request.args.get('before')))
+
+    @app.get('/api/photos/<rid>/image')
+    def photo_image(rid):
+        from route_photos import image_data
+        from flask import Response
+        response=Response(image_data(store,rid,current_user()),mimetype='image/jpeg')
+        response.headers['Cache-Control']='private, no-store'
+        return response
+
+    @app.get('/api/photo-review')
+    def photo_queue():
+        from route_photos import queue
+        return jsonify(queue(store,current_user(),request.args.get('status','pending')))
+
+    @app.get('/api/photo-permissions')
+    def photo_permissions():
+        from route_photos import moderator
+        return jsonify(canModerate=moderator(current_user()))
+
+    @app.post('/api/photo-review/<rid>')
+    def photo_review(rid):
+        from route_photos import review
+        return jsonify(review(store,rid,current_user(),body()))
+
     @app.get('/api/users')
     def people():
         from social import people
@@ -151,4 +182,4 @@ if __name__=='__main__':
     except Exception as error:
         # Connection errors may include credentials: report configuration status without their text.
         raise SystemExit('公网服务初始化失败，请检查站点地址、云数据库配置与连接权限。') from None
-    serve(application,host='0.0.0.0',port=int(os.environ.get('PORT','8080')),threads=4,max_request_body_size=65536,connection_limit=100,channel_timeout=30)
+    serve(application,host='0.0.0.0',port=int(os.environ.get('PORT','8080')),threads=4,max_request_body_size=1100000,connection_limit=100,channel_timeout=30)

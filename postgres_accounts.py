@@ -55,6 +55,8 @@ class PostgresAccounts(Accounts):
         initialize_social(self)
         from submissions import initialize as initialize_submissions
         initialize_submissions(self)
+        from route_photos import initialize as initialize_photos
+        initialize_photos(self,postgres=True)
 
     @contextmanager
     def connect(self):
