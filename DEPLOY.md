@@ -53,3 +53,6 @@
 线路照片：route_photos 表持久保存重编码 JPEG 与审核记录，单图压缩后最多 240 KB，全站图片上限 50 MB；每账号最多 10 张待审核，5 分钟最多 5 次提交。原图前端缩放，服务端解码验证、尺寸限制、再次重编码并去除 EXIF。所有照片初始 pending，仅上传者与审核员能访问，approved 才公开；审核员可拒绝并填原因，也可将 approved 下架为 rejected。ATLAS_MODERATOR_IDS 为明确授权的网站用户 ID 逗号列表，默认空，不会自动赋予首位注册用户权限。
 
 此免费方案采用基础文件检查加人工内容审核，没有接入色情/暴力/违法内容 AI 分类服务，不能保证自动识别全部违规内容。审核员检查线路关联、内容、版权与隐私后再批准。审核权限需用户明确指定网站账号。
+
+## Analytics
+First-party daily PV / browser UV, Asia/Shanghai, rolling 90 days. Grant dashboard access with ATLAS_ANALYTICS_ADMIN_IDS (comma-separated registered website numeric user IDs). No default administrator. Dashboard: /dashboard.html. Browser IDs are hashed per day; no IP or account linkage. Historical traffic is unavailable.

@@ -32,6 +32,8 @@ def create_app(public_url=None,database_path=None,testing=False):
     app=Flask(__name__,static_folder=None)
     app.config.update(TESTING=testing,MAX_CONTENT_LENGTH=65536,TRUSTED_HOSTS=[parsed.hostname,'127.0.0.1','localhost'])
     app.extensions['accounts']=store
+    from analytics import initialize as initialize_analytics
+    initialize_analytics(store)
 
     @app.before_request
     def validate_request():
@@ -75,6 +77,22 @@ def create_app(public_url=None,database_path=None,testing=False):
         return data
 
     def current_user():return store.user(request.headers.get('Cookie'))
+
+    @app.post('/api/analytics/event')
+    def analytics_event():
+        from analytics import record
+        store.rate_limit('analytics:'+str(request.remote_addr),limit=5000)
+        return jsonify(record(store,body()))
+
+    @app.get('/api/analytics/permissions')
+    def analytics_permissions():
+        from analytics import allowed
+        return jsonify(canView=allowed(current_user()))
+
+    @app.get('/api/analytics/report')
+    def analytics_report():
+        from analytics import report
+        return jsonify(report(store,current_user(),request.args.get('days','30')))
 
     @app.get('/api/health')
     def health():return jsonify(app='trail-atlas',status='ok')
