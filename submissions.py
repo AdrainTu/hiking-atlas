@@ -15,20 +15,12 @@ def initialize(store):
         db.execute('CREATE INDEX IF NOT EXISTS route_submissions_owner ON route_submissions(user_id,id)')
 
 def exists(store,rid):
-    from comments import ROUTES
-    if isinstance(rid,str) and rid in ROUTES:return True
-    if not isinstance(rid,str) or len(rid)>50:return False
-    with store.connect() as db:return bool(db.execute('SELECT 1 FROM route_submissions WHERE id=?',(rid,)).fetchone())
+    from catalog import route_exists
+    return route_exists(store,rid)
 
-def valid_ids(store,ids):
-    from comments import ROUTES
-    if not isinstance(ids,list) or len(ids)>200 or not all(isinstance(rid,str) and len(rid)<=50 for rid in ids):return set()
-    known=set(ids)&ROUTES;missing=set(ids)-known
-    if missing:
-        with store.connect() as db:
-            rows=db.execute('SELECT id FROM route_submissions WHERE id IN ('+','.join('?' for _ in missing)+')',tuple(missing)).fetchall()
-        known.update(row['id'] for row in rows)
-    return known
+def valid_ids(store,ids,public=False):
+    from catalog import valid_ids as valid
+    return valid(store,ids,public)
 
 def text(data,key,limit,default='',minimum=0):
     value=data.get(key,default)
@@ -67,17 +59,20 @@ def publish(store,user,data):
     route=dict(id=rid,name=name,english='Community Trail',country='中国 · '+province,province=province,continent='亚洲',flag='🇨🇳',level=level,distance=distance,distanceText=f'投稿参考约 {distance:g} km',days=days,duration=f'{days} 天 · 用户参考',altitude=altitude,altitudeText=f'投稿参考约 {altitude:g} m' if altitude else '投稿未提供海拔',altitudeLabel='投稿参考海拔（非核验）',season=sorted(set(season)),seasonText='投稿参考月份，请结合天气确认',type='社区投稿 / 用户轨迹' if not location_only else '社区投稿 / 位置标注',tags=['社区投稿','用户经验'],subtitle='来自同行者的路线分享',description=description,highlights=[name,'用户贡献的徒步经验'],gear=gear,itinerary=itinerary,points=points,locationOnly=location_only,community=True,photoPending=True,sources=[],videos=[],access='community',accessText='社区投稿 · 未经独立核验',author={'id':user['id'],'username':user['username']},created_at=int(time.time()))
     for key,default in {'logistics':'请向作者核实入口与接驳。','stay':'按行程提前确认合法住宿。','food':'自带饮水与食物，补给点请提前确认。','permit':'投稿不代表通行许可；出发前向管理部门核实开放与预约。','risks':'注意天气、体力及路况；用户轨迹不等于安全或合法通行证明。','photoTip':'沿开放步道拍摄，尊重当地环境。'}.items():route[key]=text(data,key,1500,default)
     store.rate_limit('route-submit:'+str(user['id']),limit=5)
-    with store.connect() as db:db.execute('INSERT INTO route_submissions (id,user_id,data,created_at) VALUES (?,?,?,?)',(rid,user['id'],json.dumps(route,ensure_ascii=False),route['created_at']))
+    with store.connect() as db:
+        encoded=json.dumps(route,ensure_ascii=False)
+        db.execute('INSERT INTO route_submissions (id,user_id,data,created_at) VALUES (?,?,?,?)',(rid,user['id'],encoded,route['created_at']))
+        db.execute('INSERT INTO catalog_routes(id,data,origin,status,user_id,created_at,updated_at) VALUES(?,?,?,?,?,?,?)',(rid,encoded,'community','published',user['id'],route['created_at'],route['created_at']))
     return {'route':route}
 
 def listing(store,before=None,owner=None):
     if before is not None and (not isinstance(before,str) or len(before)>50):raise AccountError(400,'分页参数不正确。')
-    params=[before or 'z'];sql='SELECT data,id FROM route_submissions WHERE id<?'
-    if owner is not None:sql+=' AND user_id=?';params.append(owner)
-    with store.connect() as db:rows=db.execute(sql+' ORDER BY id DESC LIMIT 51',tuple(params)).fetchall()
+    params=[before or 'z'];sql="SELECT COALESCE(c.data,r.data) AS data,r.id FROM route_submissions r LEFT JOIN catalog_routes c ON c.id=r.id WHERE r.id<? AND (c.id IS NULL OR c.status='published')"
+    if owner is not None:sql+=' AND r.user_id=?';params.append(owner)
+    with store.connect() as db:rows=db.execute(sql+' ORDER BY r.id DESC LIMIT 51',tuple(params)).fetchall()
     return {'routes':[json.loads(row['data']) for row in rows[:50]],'next':rows[49]['id'] if len(rows)>50 else None}
 
 def get_route(store,rid):
-    with store.connect() as db:row=db.execute('SELECT data FROM route_submissions WHERE id=?',(rid,)).fetchone()
+    with store.connect() as db:row=db.execute("SELECT COALESCE(c.data,r.data) AS data FROM route_submissions r LEFT JOIN catalog_routes c ON c.id=r.id WHERE r.id=? AND (c.id IS NULL OR c.status='published')",(rid,)).fetchone()
     if not row:raise AccountError(404,'投稿线路不存在。')
     return {'route':json.loads(row['data'])}

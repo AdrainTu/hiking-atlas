@@ -30,7 +30,7 @@ def profile(store,uid,viewer=None):
         followed=bool(viewer and db.execute('SELECT 1 FROM follows WHERE follower_id=? AND followed_id=?',(viewer['id'],uid)).fetchone())
     from submissions import valid_ids
     ids=json.loads(saved['data']).get('completed',[]) if saved else []
-    valid=valid_ids(store,ids)
+    valid=valid_ids(store,ids,public=True)
     completed=[item for item in ids if item in valid]
     return {'user':dict(row),'completed':completed,'followingCount':following,'followerCount':followers,'isFollowing':followed}
 

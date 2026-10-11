@@ -59,3 +59,6 @@ First-party daily PV / browser UV, Asia/Shanghai, rolling 90 days. Grant dashboa
 
 ## Data administration
 /admin.html uses a dedicated ATLAS_DATA_ADMIN_IDS allowlist of registered website numeric IDs. No default role or self-service role grants. Lists users, comments, submitted routes, photo metadata, follows and immutable operation logs. Password hashes, sessions and connection strings are excluded. Edits/deletes require reason, current record fingerprint and explicit deletion text. Administrators cannot be deleted. Data administrators can also review private photo uploads. Built-in route files are maintained separately.
+
+## Canonical routes
+The catalog_routes table is the source of truth for selected and submitted routes. First startup imports catalog-seed.json (95 curated records) once, preserving all existing IDs; later startups never overwrite admin edits or visibility. New submissions are mirrored transactionally. /catalog.js supplies published curated/managed routes to the homepage; community routes retain paginated endpoints. Draft/archived routes remain in the DB, but disappear from public route discovery, comments and photo access; saved user footprint IDs are preserved. /admin.html > 线路管理 supports full edits, new routes, visibility and normalized photo uploads. Every edit is audited.

@@ -52,7 +52,8 @@ def normalize(encoded):
 def upload(store,route,user,data):
     if not user:raise AccountError(401,'登录后即可上传线路照片。')
     if data.get('userId')!=user['id']:raise AccountError(409,'账号已切换，请重新打开上传窗口。')
-    if not exists(store,route):raise AccountError(404,'线路不存在。')
+    from catalog import route_exists
+    if not route_exists(store,route,public=not moderator(user)):raise AccountError(404,'线路不存在。')
     caption=data.get('caption')
     if not isinstance(caption,str) or not 2<=len(caption.strip())<=200:raise AccountError(400,'请填写 2–200 字的照片说明。')
     if data.get('rightsConfirmed') is not True:raise AccountError(400,'请确认有权公开这张线路照片。')
@@ -68,7 +69,8 @@ def upload(store,route,user,data):
     return {'id':rid,'status':'pending','message':'基础文件检查通过，照片等待人工审核；通过后才公开。'}
 
 def listing(store,route,user=None,before=None):
-    if not exists(store,route):raise AccountError(404,'线路不存在。')
+    from catalog import route_exists
+    if not route_exists(store,route,public=not moderator(user)):raise AccountError(404,'线路不存在。')
     stamp,rid=photo_cursor(before)
     with store.connect() as db:
         rows=db.execute("SELECT route_photos.id,caption,route_photos.created_at,username,user_id FROM route_photos JOIN users ON users.id=user_id WHERE route_id=? AND status='approved' AND (route_photos.created_at<? OR (route_photos.created_at=? AND route_photos.id<?)) ORDER BY route_photos.created_at DESC,route_photos.id DESC LIMIT 51",(route,stamp,stamp,rid)).fetchall()
@@ -83,8 +85,10 @@ def photo_cursor(before):
     return int(stamp),rid
 
 def image_data(store,rid,user):
-    with store.connect() as db:row=db.execute('SELECT image,status,user_id FROM route_photos WHERE id=?',(rid,)).fetchone()
+    with store.connect() as db:row=db.execute('SELECT image,status,user_id,route_id FROM route_photos WHERE id=?',(rid,)).fetchone()
     if not row or (row['status']!='approved' and not(user and (user['id']==row['user_id'] or moderator(user)))):raise AccountError(404,'照片不存在或尚未公开。')
+    from catalog import route_exists
+    if not route_exists(store,row['route_id']) and not(user and (user['id']==row['user_id'] or moderator(user))):raise AccountError(404,'线路尚未公开。')
     return bytes(row['image'])
 
 def queue(store,user,status='pending'):

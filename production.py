@@ -80,6 +80,15 @@ def create_app(public_url=None,database_path=None,testing=False):
 
     def current_user():return store.user(request.headers.get('Cookie'))
 
+    @app.get('/catalog.js')
+    def catalog_script():
+        from catalog import bootstrap
+        from flask import Response
+        import json
+        data=bootstrap(store)
+        script='window.TRAILS='+json.dumps(data['routes'],ensure_ascii=True)+';window.TRAIL_META='+json.dumps(data['meta'],ensure_ascii=True)+';window.ATLAS_KNOWN_ROUTE_IDS='+json.dumps(data['knownIds'])+';'
+        response=Response(script,mimetype='application/javascript');response.headers['Cache-Control']='no-store';return response
+
     @app.get('/api/admin/permissions')
     def admin_permissions():
         from admin import allowed
@@ -90,8 +99,13 @@ def create_app(public_url=None,database_path=None,testing=False):
         from admin import summary
         return jsonify(summary(store,current_user()))
 
-    @app.get('/api/admin/<kind>')
+    @app.route('/api/admin/<kind>',methods=['GET','POST'])
     def admin_list(kind):
+        if kind=='routes':
+            from catalog import admin_listing,save
+            if request.method=='POST':return jsonify(save(store,current_user(),body())),201
+            return jsonify(admin_listing(store,current_user(),request.args.get('search',''),request.args.get('page','1'),request.args.get('status','')))
+        if request.method=='POST':raise AccountError(405,'请求方法不支持。')
         from admin import listing
         return jsonify(listing(store,current_user(),kind,request.args.get('search',''),request.args.get('page','1')))
 
@@ -99,6 +113,10 @@ def create_app(public_url=None,database_path=None,testing=False):
     def admin_record(kind,rid):
         from admin import preview,mutate
         user=current_user()
+        if kind=='routes':
+            from catalog import preview as route_preview,save
+            if request.method=='POST':return jsonify(save(store,user,body(),rid))
+            return jsonify(route_preview(store,user,rid))
         if request.method=='POST':return jsonify(mutate(store,user,kind,rid,body()))
         return jsonify(preview(store,user,kind,rid))
 

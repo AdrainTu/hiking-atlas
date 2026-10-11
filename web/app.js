@@ -1,13 +1,15 @@
 'use strict';
 (() => {
-  const trails = window.TRAILS;
-  const meta = window.TRAIL_META;
+  const catalogUnavailable=!Array.isArray(window.TRAILS);
+  const trails = window.TRAILS || [];
+  window.TRAILS=trails;
+  const meta = window.TRAIL_META || {levels:{2:"中等",3:"困难",4:"挑战"},colors:{2:"#8edcc5",3:"#f3bd72",4:"#ef8997"}};
   const $ = id => document.getElementById(id);
   const escape = value => String(value).replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
   const safeUrl = url => { try { const parsed = new URL(url); if(parsed.protocol==='http:') parsed.protocol='https:'; return parsed.protocol === 'https:' ? parsed.href : ''; } catch { return ''; } };
   const external = (url, text) => `<a href="${escape(safeUrl(url))}" target="_blank" rel="noopener noreferrer">${escape(text)}</a>`;
   const detailTabs = ['overview','itinerary','gear','media'];
-  const knownIds = new Set(trails.map(route => route.id));
+  const knownIds = new Set([...(window.ATLAS_KNOWN_ROUTE_IDS||[]),...trails.map(route => route.id)]);
   const state = {scope:"china",selected:null,tab:'overview',photos:{},favorites:new Set(),completed:new Set(),onlyCompleted:false,compare:[],gear:{},onlyFavorites:false,filtered:trails,photoIndex:0};
   let map, tiles, routeLayers = new Map(), selectedLayer, traveler, toastTimer, tourFrame;
   let tourPlaying = false, tourValue = 0;
@@ -43,12 +45,12 @@
     state.completed=new Set(accountUser&&Array.isArray(saved.completed)?saved.completed.filter(id=>(knownIds.has(id)||/^u-[a-z0-9-]{1,48}$/.test(id))):[]);
     state.onlyCompleted=false;
     state.gear={};
-    for(const [id,checks] of Object.entries(saved.gear||{})){const route=findRoute(id);if(Array.isArray(checks)&&(route||/^u-[a-z0-9-]{1,48}$/.test(id)))state.gear[id]=checks.filter(index=>Number.isInteger(index)&&index>=0&&index<(route?route.gear.length:100));}
+    for(const [id,checks] of Object.entries(saved.gear||{})){const route=findRoute(id);if(Array.isArray(checks)&&(route||knownIds.has(id)||/^u-[a-z0-9-]{1,48}$/.test(id)))state.gear[id]=checks.filter(index=>Number.isInteger(index)&&index>=0&&index<(route?route.gear.length:100));}
     state.onlyFavorites=false;filterRoutes();
     if(state.selected){const scroll=$('detail').scrollTop;renderDetail();$('detail').scrollTop=scroll;}
   });
   window.AtlasAddRoutes=routes=>{
-    for(const route of routes)if(!knownIds.has(route.id)){trails.push(route);knownIds.add(route.id);if(state.gear[route.id])state.gear[route.id]=state.gear[route.id].filter(i=>i<route.gear.length);}
+    for(const route of routes)if(!trails.some(r=>r.id===route.id)){trails.push(route);knownIds.add(route.id);if(state.gear[route.id])state.gear[route.id]=state.gear[route.id].filter(i=>i<route.gear.length);}
     const chosen=$('province').value;
     const provinces=[...new Set(trails.flatMap(r=>r.province?.split(' / ')||[]))].sort((a,b)=>a.localeCompare(b,'zh-CN'));
     $('province').replaceChildren(new Option('全部省区',''));
@@ -142,6 +144,7 @@
   function worldView(animate = true) {
     if(!map) return;
     const pool=state.filtered.length?state.filtered:trails;
+    if(!pool.length)return;
     const bounds=L.latLngBounds(pool.flatMap(route=>route.points));
     map.flyToBounds(bounds,{paddingTopLeft:[40,110],paddingBottomRight:[40,90],maxZoom:state.scope==='china'?5:2,duration:animate&&!reducedMotion.matches?1.4:0,animate:animate&&!reducedMotion.matches});
   }
@@ -236,7 +239,7 @@
   function renderMedia(route) {
     const videos=route.videos || [];
     const keyword=encodeURIComponent(route.name.replace(/ · .*/, '')+' 徒步');
-    return `<section class="detail-section"><h3 class="section-label">山野影像 <span class="eyebrow">BILIBILI</span></h3><p>已检索到的具体视频：${videos.length} 条。游记拍摄时间和路线版本各异，不能作为当前开放依据。</p><div class="video-grid">${videos.map(video=>`<article class="video-card"><div class="video-cover">${photoImage(state.photos[route.id]?.[0],'loading="lazy"')}<button data-video="${escape(video.bvid)}" aria-label="播放${escape(video.title)}">▶</button><span>线路景观参考 · 非视频封面</span></div><h4>${escape(video.title)}</h4><p>B站 · 链接检索于 ${escape(video.checked)}</p>${external(video.url,'在 B站观看 ↗')}</article>`).join('')}</div>${!videos.length?'<p class="media-empty">本线路暂未收录核验过的具体视频，可使用下方站内搜索。</p>':''}<div id="video-player"></div></section><section class="detail-section"><h3 class="section-label">寻找更多当地视角</h3><div class="community-links">${external('https://search.bilibili.com/all?keyword='+keyword,'B站 · 搜索更多视频 ↗')}${external('https://www.xiaohongshu.com/search_result?keyword='+keyword+'&source=web_explore_feed','小红书 · 搜索图文与视频 ↗')}</div><p class="reference-note">以上是平台搜索入口，未计入已收录视频。小红书可能要求登录；社区图片与视频保留在原平台，未授权转载的内容不复制进相册。</p></section>`;
+    return `<section class="detail-section"><h3 class="section-label">山野影像 <span class="eyebrow">BILIBILI</span></h3><p>已检索到的具体视频：${videos.length} 条。游记拍摄时间和路线版本各异，不能作为当前开放依据。</p><div class="video-grid">${videos.map(video=>`<article class="video-card"><div class="video-cover">${photoImage(state.photos[route.id]?.[0],'loading="lazy"')}${video.bvid?`<button data-video="${escape(video.bvid)}" aria-label="播放${escape(video.title)}">▶</button>`:external(video.url,'查看视频 ↗')}<span>线路景观参考 · 非视频封面</span></div><h4>${escape(video.title)}</h4><p>${escape(video.platform||'视频链接')}${video.checked?' · 链接记录于 '+escape(video.checked):' · 管理员收录'}</p>${external(video.url,'打开原视频 ↗')}</article>`).join('')}</div>${!videos.length?'<p class="media-empty">本线路暂未收录核验过的具体视频，可使用下方站内搜索。</p>':''}<div id="video-player"></div></section><section class="detail-section"><h3 class="section-label">寻找更多当地视角</h3><div class="community-links">${external('https://search.bilibili.com/all?keyword='+keyword,'B站 · 搜索更多视频 ↗')}${external('https://www.xiaohongshu.com/search_result?keyword='+keyword+'&source=web_explore_feed','小红书 · 搜索图文与视频 ↗')}</div><p class="reference-note">以上是平台搜索入口，未计入已收录视频。小红书可能要求登录；社区图片与视频保留在原平台，未授权转载的内容不复制进相册。</p></section>`;
   }
   function playVideo(bvid) {
     const video=state.selected?.videos?.find(item=>item.bvid===bvid);if(!video)return;
@@ -420,8 +423,9 @@
   });
   if(window.AtlasAuth.user)window.dispatchEvent(new CustomEvent('atlas-account',{detail:{user:window.AtlasAuth.user,preferences:window.AtlasAuth.preferences||{}}}));
   filterRoutes(); initializeMap(); renderCards();
+  if(catalogUnavailable){const warning=document.createElement('p');warning.setAttribute('role','alert');warning.textContent='线路数据库暂时无法加载，请稍后刷新重试。';document.querySelector('.catalog-head').append(warning);}
   const initialId=location.hash.slice(1);
-  if(knownIds.has(initialId)) {if(!findRoute(initialId).country.startsWith('中国')){$('scope-world').click();} selectRoute(initialId);}
+  if(findRoute(initialId)) {if(!findRoute(initialId).country.startsWith('中国')){$('scope-world').click();} selectRoute(initialId);}
   window.addEventListener('hashchange',()=>{
     const id=location.hash.slice(1),route=findRoute(id);
     if(!route)return;

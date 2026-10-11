@@ -60,6 +60,8 @@ class Accounts:
         initialize_submissions(self)
         from route_photos import initialize as initialize_photos
         initialize_photos(self)
+        from catalog import initialize as initialize_catalog
+        initialize_catalog(self)
 
     @contextmanager
     def connect(self):

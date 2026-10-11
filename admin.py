@@ -23,6 +23,7 @@ def summary(store,user):
     require(user)
     with store.connect() as db:
         counts={k:db.execute('SELECT COUNT(*) AS n FROM '+v[0]).fetchone()['n'] for k,v in TABLES.items()}
+        counts['routes']=db.execute('SELECT COUNT(*) AS n FROM catalog_routes').fetchone()['n']
         counts['pending']=db.execute("SELECT COUNT(*) AS n FROM route_photos WHERE status='pending'").fetchone()['n']
     return {'counts':counts,'user':user}
 def listing(store,user,kind,search='',page='1'):
@@ -88,6 +89,7 @@ def mutate(store,user,kind,rid,payload):
             if kind=='submissions':
                 for linked in ['comments','route_photos']:db.execute('DELETE FROM '+linked+' WHERE route_id=?',(rid,))
             db.execute('DELETE FROM '+table+' WHERE id=?',(rid,))
+            if kind=='submissions':db.execute('DELETE FROM catalog_routes WHERE id=?',(rid,))
         elif kind=='comments' and action=='edit':
             value=payload.get('content');category=payload.get('category')
             from comments import CATEGORIES
@@ -97,7 +99,9 @@ def mutate(store,user,kind,rid,payload):
             value=payload.get('description');name=payload.get('name');route=json.loads(data['data'])
             if not isinstance(name,str) or not 2<=len(name.strip())<=80 or not isinstance(value,str) or not 20<=len(value.strip())<=4000:raise AccountError(400,'线路名称或介绍长度不正确。')
             route['name']=name.strip();route['description']=value.strip()
-            db.execute('UPDATE route_submissions SET data=? WHERE id=?',(json.dumps(route,ensure_ascii=False),rid))
+            encoded=json.dumps(route,ensure_ascii=False)
+            db.execute('UPDATE route_submissions SET data=? WHERE id=?',(encoded,rid))
+            db.execute('UPDATE catalog_routes SET data=?,updated_at=?,revision=revision+1 WHERE id=?',(encoded,int(time.time()),rid))
         elif kind=='photos' and action in ('approve','reject'):
             if data['status'] not in ('pending','approved'):raise AccountError(409,'此照片已拒绝，请刷新。')
             if action=='approve' and data['status']!='pending':raise AccountError(400,'照片已通过。')
