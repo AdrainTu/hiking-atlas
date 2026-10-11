@@ -87,7 +87,12 @@ def create_app(public_url=None,database_path=None,testing=False):
         import json
         data=bootstrap(store)
         script='window.TRAILS='+json.dumps(data['routes'],ensure_ascii=True)+';window.TRAIL_META='+json.dumps(data['meta'],ensure_ascii=True)+';window.ATLAS_KNOWN_ROUTE_IDS='+json.dumps(data['knownIds'])+';'
-        response=Response(script,mimetype='application/javascript');response.headers['Cache-Control']='no-store';return response
+        response=Response(script,mimetype='application/javascript');response.headers['Cache-Control']='no-store'
+        response.headers['Vary']='Accept-Encoding'
+        if 'gzip' in request.headers.get('Accept-Encoding',''):
+            import gzip
+            response.set_data(gzip.compress(script.encode('utf-8'),compresslevel=5));response.headers['Content-Encoding']='gzip'
+        return response
 
     @app.get('/api/admin/permissions')
     def admin_permissions():

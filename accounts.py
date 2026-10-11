@@ -185,9 +185,9 @@ class Accounts:
                 raise AccountError(409, '账号已切换，请刷新后重试保存。')
             favorites, gear = data.get('favorites'), data.get('gear')
             valid_id = lambda value: isinstance(value, str) and re.fullmatch(r'[a-z0-9-]{1,50}', value)
-            if not isinstance(favorites, list) or len(favorites) > 200 or not all(valid_id(x) for x in favorites):
+            if not isinstance(favorites, list) or len(favorites) > 500 or not all(valid_id(x) for x in favorites):
                 raise AccountError(400, '收藏格式不正确。')
-            if not isinstance(gear, dict) or len(gear) > 200:
+            if not isinstance(gear, dict) or len(gear) > 500:
                 raise AccountError(400, '装备清单格式不正确。')
             for key, checks in gear.items():
                 if not valid_id(key) or not isinstance(checks, list) or len(checks) > 100 or not all(type(i) is int and 0 <= i < 100 for i in checks):
@@ -195,7 +195,7 @@ class Accounts:
             existing=db.execute('SELECT data FROM preferences WHERE user_id=?',(user['id'],)).fetchone()
             completed=data.get('completed',json.loads(existing['data']).get('completed',[]) if existing else [])
             from submissions import valid_ids
-            if not isinstance(completed,list) or len(completed)>200 or not all(isinstance(item,str) for item in completed) or len(valid_ids(self,completed))!=len(set(completed)):
+            if not isinstance(completed,list) or len(completed)>500 or not all(isinstance(item,str) for item in completed) or len(valid_ids(self,completed))!=len(set(completed)):
                 raise AccountError(400,'已走过线路格式不正确。')
             value = {'favorites': list(dict.fromkeys(favorites)), 'gear': gear, 'completed':list(dict.fromkeys(completed))}
             db.execute('INSERT INTO preferences VALUES (?,?) ON CONFLICT(user_id) DO UPDATE SET data=excluded.data',
