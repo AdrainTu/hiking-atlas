@@ -24,7 +24,8 @@ def initialize(store,postgres=False):
 
 def moderator(user):
     ids={int(value) for value in os.environ.get('ATLAS_MODERATOR_IDS','').split(',') if value.strip().isdigit()}
-    return bool(user and user['id'] in ids)
+    from admin import allowed
+    return bool(user and user['id'] in ids) or allowed(user)
 
 def normalize(encoded):
     from PIL import Image,ImageOps,UnidentifiedImageError

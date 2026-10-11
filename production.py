@@ -34,6 +34,8 @@ def create_app(public_url=None,database_path=None,testing=False):
     app.extensions['accounts']=store
     from analytics import initialize as initialize_analytics
     initialize_analytics(store)
+    from admin import initialize as initialize_admin
+    initialize_admin(store,postgres=isinstance(store.database,str))
 
     @app.before_request
     def validate_request():
@@ -77,6 +79,28 @@ def create_app(public_url=None,database_path=None,testing=False):
         return data
 
     def current_user():return store.user(request.headers.get('Cookie'))
+
+    @app.get('/api/admin/permissions')
+    def admin_permissions():
+        from admin import allowed
+        return jsonify(canManage=allowed(current_user()))
+
+    @app.get('/api/admin/summary')
+    def admin_summary():
+        from admin import summary
+        return jsonify(summary(store,current_user()))
+
+    @app.get('/api/admin/<kind>')
+    def admin_list(kind):
+        from admin import listing
+        return jsonify(listing(store,current_user(),kind,request.args.get('search',''),request.args.get('page','1')))
+
+    @app.route('/api/admin/<kind>/<rid>',methods=['GET','POST'])
+    def admin_record(kind,rid):
+        from admin import preview,mutate
+        user=current_user()
+        if request.method=='POST':return jsonify(mutate(store,user,kind,rid,body()))
+        return jsonify(preview(store,user,kind,rid))
 
     @app.post('/api/analytics/event')
     def analytics_event():

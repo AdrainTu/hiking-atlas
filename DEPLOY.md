@@ -56,3 +56,6 @@
 
 ## Analytics
 First-party daily PV / browser UV, Asia/Shanghai, rolling 90 days. Grant dashboard access with ATLAS_ANALYTICS_ADMIN_IDS (comma-separated registered website numeric user IDs). No default administrator. Dashboard: /dashboard.html. Browser IDs are hashed per day; no IP or account linkage. Historical traffic is unavailable.
+
+## Data administration
+/admin.html uses a dedicated ATLAS_DATA_ADMIN_IDS allowlist of registered website numeric IDs. No default role or self-service role grants. Lists users, comments, submitted routes, photo metadata, follows and immutable operation logs. Password hashes, sessions and connection strings are excluded. Edits/deletes require reason, current record fingerprint and explicit deletion text. Administrators cannot be deleted. Data administrators can also review private photo uploads. Built-in route files are maintained separately.
