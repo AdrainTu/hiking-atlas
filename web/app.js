@@ -146,6 +146,8 @@
     map.flyToBounds(bounds,{paddingTopLeft:[40,110],paddingBottomRight:[40,90],maxZoom:state.scope==='china'?5:2,duration:animate&&!reducedMotion.matches?1.4:0,animate:animate&&!reducedMotion.matches});
   }
   function renderMapLayers() {
+    window.AtlasRegions?.render({scope:state.scope,selected:state.selected,province:$('province').value,filtered:state.filtered,
+      choose:province=>{if(![...$('province').options].some(o=>o.value===province))$('province').append(new Option(province,province));$('province').value=province;filterRoutes();worldView();},select:selectRoute});
     if (!map) return;
     for (const layers of routeLayers.values()) layers.remove();
     routeLayers.clear();
@@ -428,6 +430,6 @@
     selectRoute(id);
   });
   fetch('photos.json').then(response=>{if(!response.ok)throw new Error('Photo metadata unavailable');return response.json();}).then(photos=>{
-    state.photos=photos;renderCards();if(state.selected){const scroll=$('detail').scrollTop;renderDetail();$('detail').scrollTop=scroll;}
+    state.photos=photos;window.AtlasRegionPhotos=photos;renderMapLayers();renderCards();if(state.selected){const scroll=$('detail').scrollTop;renderDetail();$('detail').scrollTop=scroll;}
   }).catch(()=>toast('照片资料未能加载，线路介绍仍可浏览；请刷新后重试。'));
 })();
